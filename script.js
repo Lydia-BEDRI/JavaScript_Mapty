@@ -23,6 +23,7 @@ class Workout {
 
 
 class Running extends Workout {
+    type = 'running';
     constructor(coords, distance, duration, cadence) {
         super(coords, distance, duration);
         this.cadence = cadence;
@@ -36,6 +37,8 @@ class Running extends Workout {
 }
 
 class Cycling extends Workout {
+    type = 'cycling';
+
     constructor(coords, distance, duration, elevationGain) {
         super(coords, distance, duration);
         this.elevationGain = elevationGain;
@@ -57,7 +60,9 @@ class Cycling extends Workout {
 class App {
     #map;
     #mapEvent;
+    #workouts = [];
     constructor() {
+
         this._getPosition();
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevationField);
@@ -97,21 +102,67 @@ class App {
 
     }
     _newWorkout(e) {
-        e.preventDefault();
-        inputElevation.value = inputDuration.value = inputDistance.value = inputCadence.value = '';
-        const { lat, lng } = this.#mapEvent.latlng;
+        const validInputs = (...inputs) => { return inputs.every(inp => Number.isFinite(inp)) };
 
-        L.marker([lat, lng]).addTo(this.#map)
+        const allPositive = (...inputs) => { return inputs.every(inp => inp > 0); }
+        e.preventDefault();
+        // get data from the form
+        const type = inputType.value;
+        const distance = Number(inputDistance.value);
+        const duration = Number(inputDuration.value);
+        const { lat, lng } = this.#mapEvent.latlng;
+        let workout;
+
+        // check validity
+
+        // if running, create running obj
+        if (type === 'running') {
+            const cadence = +inputCadence.value;
+
+            if (!validInputs(distance, duration, cadence)
+                || !allPositive(distance, duration, cadence)) {
+                return alert('Inputs have to be a positive number');
+            }
+            workout = new Running([lat, lng], distance, duration, cadence);
+        }
+
+        // if cycling, create cycling obj 
+        if (type === 'cycling') {
+            const elevation = +inputElevation.value;
+            if (!validInputs(distance, duration, elevation)
+                || !allPositive(distance, duration)) {
+                return alert('Inputs have to be a positive number');
+            }
+            workout = new Cycling([lat, lng], distance, duration, elevation);
+        }
+
+        // add new object to workout array
+        this.#workouts.push(workout);
+
+        // render workout on map as marker
+        this.renderWorkoutMarker(workout);
+
+        // render workout on list
+
+        // hide form + clear input fields
+        inputElevation.value = inputDuration.value = inputDistance.value = inputCadence.value = '';
+
+
+    }
+
+
+    renderWorkoutMarker(workout) {
+        L.marker(workout.coords)
+            .addTo(this.#map)
             .bindPopup(L.popup({
                 maxWidth: 250,
                 minWidth: 100,
                 autoClose: false,
                 closeOnClick: false,
-                className: 'running-popup',
+                className: `${workout.type}-popup`,
             }))
             .setPopupContent('Workout')
             .openPopup();
-
     }
 }
 
